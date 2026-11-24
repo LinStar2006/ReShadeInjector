@@ -1,0 +1,40 @@
+# 构建产物
+build/
+build-test/
+pkg/
+_stale_*/
+
+# 编译中间文件
+*.pdb
+*.obj
+*.ilk
+
+# 测试用的二进制：源码都在 test\ 里，需要时用 cl.exe / csc.exe 现编，
+# 不要把 4.9 MB 的 ReShade64.dll 和靶子 exe 塞进仓库
+test/*.exe
+test/*.dll
+test/*.ini
+test/*.log
+test/_pftest/
+test/env-eff/
+test/path-probe/
+test/Shader/
+test/injected-marker.txt
+test/d3dtarget-pid.txt
+
+# 运行时生成的本机状态（会记住本机的游戏路径与选中预设）
+game-paths.ini
+settings.ini
+
+# 截图：README 里没有引用图片，这些都是本机验证留下的
+screenshot.png
+*-shot*.png
+*-check*.png
+style-*.png
+menu-*.png
+overlay-*.png
+dialog-*.png
+
+# Windows 系统文件
+Thumbs.db
+desktop.ini

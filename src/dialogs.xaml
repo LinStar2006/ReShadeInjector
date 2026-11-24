@@ -1,0 +1,122 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- 自绘对话框的外观：深色面板 + 圆角 + 冷色按钮，跟主界面同一套语言。
+         系统 MessageBox 一律是浅色原生窗口，放进来非常突兀，所以这里全部自己画。 -->
+
+    <SolidColorBrush x:Key="DlgBg" Color="#FF14181F"/>
+    <SolidColorBrush x:Key="DlgBorder" Color="#FF2C3545"/>
+    <SolidColorBrush x:Key="DlgTitle" Color="#FFEDF0F6"/>
+    <SolidColorBrush x:Key="DlgText" Color="#FF9AA5B8"/>
+    <SolidColorBrush x:Key="DlgFieldBg" Color="#FF0C0F15"/>
+    <SolidColorBrush x:Key="DlgFieldBorder" Color="#FF242B37"/>
+
+    <LinearGradientBrush x:Key="DlgAccentGradient" StartPoint="0,0" EndPoint="1,0">
+        <GradientStop Color="#FF6FD6FB" Offset="0"/>
+        <GradientStop Color="#FF4A7DFF" Offset="1"/>
+    </LinearGradientBrush>
+
+    <Style x:Key="DlgPanel" TargetType="Border">
+        <Setter Property="Margin" Value="12"/>
+        <Setter Property="CornerRadius" Value="12"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="BorderBrush" Value="{StaticResource DlgBorder}"/>
+        <Setter Property="Background" Value="{StaticResource DlgBg}"/>
+    </Style>
+
+    <Style x:Key="DlgButtonBase" TargetType="Button">
+        <Setter Property="Height" Value="30"/>
+        <Setter Property="MinWidth" Value="78"/>
+        <Setter Property="Padding" Value="16,0"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd"
+                            CornerRadius="8"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          Margin="{TemplateBinding Padding}"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Opacity" Value="0.88"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Bd" Property="Opacity" Value="0.7"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Bd" Property="Opacity" Value="0.4"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 次要动作：取消 -->
+    <Style x:Key="DlgButton" TargetType="Button" BasedOn="{StaticResource DlgButtonBase}">
+        <Setter Property="Background" Value="#FF22303F"/>
+        <Setter Property="BorderBrush" Value="#FF35455A"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Foreground" Value="#FFB8C4D6"/>
+    </Style>
+
+    <!-- 主要动作：确定 / 创建 / 应用 -->
+    <Style x:Key="DlgPrimary" TargetType="Button" BasedOn="{StaticResource DlgButtonBase}">
+        <Setter Property="Foreground" Value="#FFFFFFFF"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Background" Value="{StaticResource DlgAccentGradient}"/>
+    </Style>
+
+    <!-- 危险动作：删除 -->
+    <Style x:Key="DlgDanger" TargetType="Button" BasedOn="{StaticResource DlgButtonBase}">
+        <Setter Property="Foreground" Value="#FFFFFFFF"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Background" Value="#FFD84A4A"/>
+    </Style>
+
+    <Style x:Key="DlgInput" TargetType="TextBox">
+        <Setter Property="Height" Value="32"/>
+        <Setter Property="Padding" Value="9,0"/>
+        <Setter Property="FontSize" Value="12.5"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Background" Value="{StaticResource DlgFieldBg}"/>
+        <Setter Property="Foreground" Value="{StaticResource DlgTitle}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource DlgFieldBorder}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CaretBrush" Value="{StaticResource DlgTitle}"/>
+        <Setter Property="SelectionBrush" Value="#FF4A7DFF"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBox">
+                    <Border x:Name="Bd"
+                            CornerRadius="8"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            SnapsToDevicePixels="True">
+                        <ScrollViewer x:Name="PART_ContentHost"
+                                      Margin="{TemplateBinding Padding}"
+                                      VerticalAlignment="Center"
+                                      HorizontalScrollBarVisibility="Hidden"
+                                      VerticalScrollBarVisibility="Hidden"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="#FF4A7DFF"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+</ResourceDictionary>

@@ -112,8 +112,13 @@ namespace HoYoInjector
             // 蓝色星原：旅谣。Unity 引擎，exe 在 ...\AzurPromilia_Game\ 下，
             // 同目录还有个 UnityCrashHandler64.exe（已在 GameLocator 的黑名单里）。
             // 非米哈游系游戏，注册表那级识别不到，靠「运行中的进程」或 game-paths.ini。
-            // 和异环一样必须从它的启动器进游戏，直接跑 exe 会登录失败。
-            new GamePreset("蓝色星原：旅谣", "AzurPromilia", true),
+            //
+            // 它默认也要求从启动器进，但有两个条件就能直启：
+            //   1) 带上 -start=azurpromilia_launcher（注意是等号，不是连字符；
+            //      少了或写错都会弹「请使用启动器启动游戏」）
+            //   2) 必须是管理员身份（少了会报 SDK 初始化失败，点重试也没用）
+            // 所以它不标 LauncherOnly，而是带着参数、必要时补提权去启动。
+            new GamePreset("蓝色星原：旅谣", "AzurPromilia", "-start=azurpromilia_launcher", true),
 
 #if !SHIPPING
             // ---- 以下两个只在开发构建里出现（build.ps1 -Shipping 会把它们去掉）----
@@ -1637,8 +1642,10 @@ namespace HoYoInjector
                 {
                     string targetNow = GetTargetName();
 
-                    // 有些游戏必须从自己的启动器进，直启会登录失败（异环、蓝色星原）。
+                    // 有些游戏必须从自己的启动器进，直启会登录失败（只有异环是这种）。
                     // 这种情况不要替用户启动，老实提示去开启动器。
+                    // 蓝色星原虽然默认也要启动器，但它能用 -start=azurpromilia_launcher 直启，
+                    // 所以它不标 LauncherOnly，会走下面的正常启动流程。
                     if (IsLauncherOnly(targetNow))
                     {
                         Log(NormalizeExe(targetNow) + " 必须用它的启动器启动，直接跑 exe 会登录失败。");
@@ -2232,10 +2239,10 @@ namespace HoYoInjector
         }
 
         /// <summary>
-        /// 这个进程名对应的游戏是不是「必须用启动器启动」的。
+        /// 按进程名在 GamePresets 里找对应条目，找不到返回 null。
         /// GamePresets 是只读静态表，worker 线程调用也安全。
         /// </summary>
-        private static bool IsLauncherOnly(string processName)
+        private static GamePreset FindPreset(string processName)
         {
             string name = (processName ?? "").Trim();
             if (name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
@@ -2244,9 +2251,20 @@ namespace HoYoInjector
             for (int i = 0; i < GamePresets.Length; i++)
             {
                 if (string.Equals(GamePresets[i].Process, name, StringComparison.OrdinalIgnoreCase))
-                    return GamePresets[i].LauncherOnly;
+                    return GamePresets[i];
             }
-            return false;
+            return null;
+        }
+
+        /// <summary>
+        /// 这个进程名对应的游戏是不是「必须用启动器启动」的。
+        /// 注意：蓝色星原虽然默认要用启动器，但它可以用参数直启，
+        /// 所以条目上不是 LauncherOnly，这里返回 false。
+        /// </summary>
+        private static bool IsLauncherOnly(string processName)
+        {
+            GamePreset p = FindPreset(processName);
+            return p != null && p.LauncherOnly;
         }
 
         /// <summary>读界面上当前选中的目标进程名。只能在 UI 线程调。</summary>
@@ -2308,13 +2326,32 @@ namespace HoYoInjector
 
             try
             {
+                GamePreset preset = FindPreset(targetName);
+                string launchArgs = preset == null ? null : preset.LaunchArgs;
+                bool wantElevated = preset != null && preset.LaunchElevated;
+
                 Log("正在启动游戏：" + exe);
+                if (!string.IsNullOrEmpty(launchArgs))
+                    Log("  启动参数：" + launchArgs);
+
                 var psi = new ProcessStartInfo
                 {
                     FileName = exe,
                     UseShellExecute = true,
                     WorkingDirectory = Path.GetDirectoryName(exe)
                 };
+                if (!string.IsNullOrEmpty(launchArgs))
+                    psi.Arguments = launchArgs;
+
+                // 有些游戏少了管理员会初始化失败（蓝色星原：旅谣 的 SDK 初始化）。
+                // 本程序本身是 requireAdministrator，正常情况下子进程已经继承管理员令牌；
+                // 只有跑在非提权环境（开发版 asInvoker）时才需要显式补一次 runas。
+                if (wantElevated && !Injector.IsElevated())
+                {
+                    psi.Verb = "runas";
+                    Log("  这个游戏需要管理员权限，已改用提权方式启动（可能弹一次 UAC）。");
+                }
+
                 Process.Start(psi);
                 SetStatus("已启动游戏，等待进程出现…", "#FFF5B93E");
                 return true;
@@ -2549,6 +2586,21 @@ namespace HoYoInjector
         public readonly bool LauncherOnly;
 
         /// <summary>
+        /// 直启时该带的命令行参数（null / 空 = 不带参数）。
+        /// 有些游戏把「我是从启动器来的」写在命令行里，少了它就弹「请用启动器启动」。
+        /// 实例：蓝色星原：旅谣 需要 -start=azurpromilia_launcher（等号，别写成连字符）。
+        /// </summary>
+        public readonly string LaunchArgs;
+
+        /// <summary>
+        /// true 表示直启时必须用管理员权限，否则游戏自己会初始化失败
+        /// （蓝色星原少管理员会报 SDK 初始化失败，点了重试也没用）。
+        /// 本程序自己就是 requireAdministrator，子进程默认继承管理员令牌，
+        /// 这个标记主要用于「万一运行在非提权环境」时补一次 runas。
+        /// </summary>
+        public readonly bool LaunchElevated;
+
+        /// <summary>
         /// 非 null 表示这是内置测试靶子，值是选中它时该用的 DLL 文件名（在 DLL\ 下）。
         /// 靶子没有真实游戏的图形/反作弊环境，配哪个 DLL 是固定的：
         ///   - target.exe     → testdll.dll，注入后在同目录留 injected-marker.txt
@@ -2561,6 +2613,8 @@ namespace HoYoInjector
             Label = label;
             Process = process;
             LauncherOnly = false;
+            LaunchArgs = null;
+            LaunchElevated = false;
             TestDll = null;
         }
 
@@ -2569,6 +2623,22 @@ namespace HoYoInjector
             Label = label;
             Process = process;
             LauncherOnly = launcherOnly;
+            LaunchArgs = null;
+            LaunchElevated = false;
+            TestDll = null;
+        }
+
+        /// <summary>
+        /// 「可以用特定参数直启」的游戏：launchArgs 是命令行参数，
+        /// launchElevated 表示还必须以管理员身份跑。
+        /// </summary>
+        public GamePreset(string label, string process, string launchArgs, bool launchElevated)
+        {
+            Label = label;
+            Process = process;
+            LauncherOnly = false;
+            LaunchArgs = launchArgs;
+            LaunchElevated = launchElevated;
             TestDll = null;
         }
 
@@ -2577,6 +2647,8 @@ namespace HoYoInjector
             Label = label;
             Process = process;
             LauncherOnly = false;
+            LaunchArgs = null;
+            LaunchElevated = false;
             TestDll = testDll;
         }
 

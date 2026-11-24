@@ -113,6 +113,10 @@ if ($Shipping) {
 }
 $arguments.Add("/out:`"$outExe`"")
 $arguments.Add("/win32manifest:`"$manifestFile`"")
+# 应用图标：多尺寸 ico（16/24/32/48/64/128 用 DIB，256 用 PNG 压缩）。
+# 只决定资源管理器 / 任务栏 / Alt+Tab 上看到的那个图标；
+# 界面左上角那个是 ui.xaml 里画的，不受影响。
+$arguments.Add("/win32icon:`"$(Join-Path $srcDir 'app.ico')`"")
 # 把 ui.xaml 作为嵌入资源编进 exe（C# 里用 GetManifestResourceStream 读）
 # 注意：资源名必须写在引号外，写成 /resource:"路径",资源名
 $arguments.Add("/resource:`"$(Join-Path $srcDir 'ui.xaml')`",HoYoInjector.ui.xaml")

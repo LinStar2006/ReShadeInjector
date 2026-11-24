@@ -965,7 +965,7 @@
 
                     <Grid Margin="0,12,0,0">
                       <TextBlock Text="版本" Style="{StaticResource SettingLabel}"/>
-                      <TextBlock Name="VersionText" Text="1.0.0" Foreground="{StaticResource TextSecondary}"
+                      <TextBlock Name="VersionText" Text="1.0.1" Foreground="{StaticResource TextSecondary}"
                                  FontSize="13" HorizontalAlignment="Right" VerticalAlignment="Center"
                                  FontFamily="Cascadia Mono, Consolas"/>
                     </Grid>

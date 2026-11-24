@@ -109,6 +109,12 @@ namespace HoYoInjector
             // 等待界面里再点一次按钮不会替你启动它，只会提示用启动器。
             new GamePreset("异环", "HTGame", true),
 
+            // 蓝色星原：旅谣。Unity 引擎，exe 在 ...\AzurPromilia_Game\ 下，
+            // 同目录还有个 UnityCrashHandler64.exe（已在 GameLocator 的黑名单里）。
+            // 非米哈游系游戏，注册表那级识别不到，靠「运行中的进程」或 game-paths.ini。
+            // 和异环一样必须从它的启动器进游戏，直接跑 exe 会登录失败。
+            new GamePreset("蓝色星原：旅谣", "AzurPromilia", true),
+
 #if !SHIPPING
             // ---- 以下两个只在开发构建里出现（build.ps1 -Shipping 会把它们去掉）----
             // 内置测试靶子有两个，验证的东西不一样：
@@ -1631,7 +1637,7 @@ namespace HoYoInjector
                 {
                     string targetNow = GetTargetName();
 
-                    // 有些游戏必须从自己的启动器进，直启会登录失败（比如异环）。
+                    // 有些游戏必须从自己的启动器进，直启会登录失败（异环、蓝色星原）。
                     // 这种情况不要替用户启动，老实提示去开启动器。
                     if (IsLauncherOnly(targetNow))
                     {
@@ -2418,6 +2424,14 @@ namespace HoYoInjector
 
         private bool Elevate(string arguments)
         {
+            // 提权实例是一个新进程，它启动后同样要走单实例检查。
+            // 不先放掉手里的锁，它就会以为「已经有一个在跑了」而直接退出，
+            // 结果是点了 UAC 同意、窗口也关了，却什么都没起来。
+            // 这里的取舍：放掉锁到本实例真正关闭之间有一小段窗口期，
+            // 用户手动再点一次 exe 能开出第三个实例 —— 但旧实例已经开始 Shutdown，
+            // 相比「提权后接不上注入」这个必然故障，这点概率可以接受。
+            bool released = false;
+
             try
             {
                 var exe = Process.GetCurrentProcess().MainModule.FileName;
@@ -2429,6 +2443,10 @@ namespace HoYoInjector
                     Verb = "runas",
                     WorkingDirectory = Path.GetDirectoryName(exe)
                 };
+
+                SingleInstance.Release();
+                released = true;
+
                 Process.Start(psi);
                 return true;
             }
@@ -2439,13 +2457,16 @@ namespace HoYoInjector
                     Log("你取消了 UAC 授权。");
                 else
                     Log("启动提权进程失败：" + ex.Message);
-                return false;
             }
             catch (Exception ex)
             {
                 Log("提权异常：" + ex.Message);
-                return false;
             }
+
+            // 走到这里说明新实例没起来（UAC 被拒 / 启动失败），本实例继续活着，
+            // 必须把锁收回来，否则这会儿再开一个副本进来就成多开了。
+            if (released) SingleInstance.Reacquire();
+            return false;
         }
 
         /// <summary>

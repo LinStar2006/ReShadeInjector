@@ -35,6 +35,9 @@ menu-*.png
 overlay-*.png
 dialog-*.png
 
+# 开发过程流水账，不发布
+进度记录.md
+
 # Windows 系统文件
 Thumbs.db
 desktop.ini
